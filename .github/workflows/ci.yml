@@ -22,9 +22,6 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[markdown,dev]"
       - name: Run tests
-        env:
-          TELEGRAM_BOT_TOKEN: "test-token-for-ci"
-          ALLOWED_USERS: "0"
         run: pytest tests/ -v --tb=short
 
   lint:
