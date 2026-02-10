@@ -18,7 +18,7 @@ import json
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -29,14 +29,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     LOW = "low"  # Normal operations (auth success, session events)
     MEDIUM = "medium"  # Suspicious (auth failure, rate limit)
     HIGH = "high"  # Attack indicator (injection, repeated failures)
     CRITICAL = "critical"  # Active attack (reserved for escalation)
 
 
-class EventType(str, Enum):
+class EventType(StrEnum):
     AUTH_SUCCESS = "auth_success"
     AUTH_FAILURE = "auth_failure"
     RATE_LIMIT = "rate_limit"

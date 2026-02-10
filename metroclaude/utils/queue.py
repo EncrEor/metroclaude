@@ -16,7 +16,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 from ..config import get_settings
 
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class TaskType(str, Enum):
+class TaskType(StrEnum):
     CONTENT = "content"  # Regular text (assistant response) — mergeable
     TOOL_USE = "tool_use"  # Tool invocation -> creates status message
     TOOL_RESULT = "tool_result"  # Tool result -> edits the tool_use message
