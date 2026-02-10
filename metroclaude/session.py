@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import tempfile
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -132,6 +134,40 @@ class SessionManager:
                 return info
         return None
 
+    # P1-S4: Clear session by window name
+    def clear_window_session(self, window_name: str) -> SessionInfo | None:
+        """Remove the session associated with a window name.
+
+        Returns the removed SessionInfo, or None if not found.
+        """
+        for key, info in list(self._sessions.items()):
+            if info.window_name == window_name:
+                return self.remove(info.chat_id, info.topic_id)
+        return None
+
+    # ------------------------------------------------------------------
+    # P1-S3+SEC10: Stale binding detection
+    # ------------------------------------------------------------------
+
+    def cleanup_stale_sessions(self, live_windows: set[str]) -> list[SessionInfo]:
+        """Remove sessions whose tmux windows no longer exist.
+
+        Call periodically with the set of currently alive window names.
+        Returns the list of removed sessions.
+        """
+        stale: list[SessionInfo] = []
+        for key, info in list(self._sessions.items()):
+            if info.window_name not in live_windows:
+                stale.append(info)
+        for info in stale:
+            logger.warning(
+                "Stale session cleaned: %s (window '%s' gone)",
+                self._key(info.chat_id, info.topic_id),
+                info.window_name,
+            )
+            self.remove(info.chat_id, info.topic_id)
+        return stale
+
     # ------------------------------------------------------------------
     # Recent sessions (for /resume)
     # ------------------------------------------------------------------
@@ -156,7 +192,24 @@ class SessionManager:
         }
         try:
             self._state_file.parent.mkdir(parents=True, exist_ok=True)
-            self._state_file.write_text(json.dumps(data, indent=2))
+            # Atomic write: temp file + os.replace() (P1-S1)
+            fd, tmp_path = tempfile.mkstemp(
+                dir=self._state_file.parent,
+                prefix=".state_",
+                suffix=".tmp",
+            )
+            try:
+                with os.fdopen(fd, "w") as f:
+                    json.dump(data, f, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_path, self._state_file)
+            except BaseException:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
         except OSError as e:
             logger.error("Failed to save state: %s", e)
 

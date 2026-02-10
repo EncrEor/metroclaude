@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # Required
     telegram_bot_token: str
-    allowed_users: list[int] = []
+    allowed_users: str = ""  # Comma-separated user IDs (e.g. "123,456")
 
     # tmux
     tmux_session_name: str = "metroclaude"
@@ -44,14 +44,11 @@ class Settings(BaseSettings):
         "/approved-tools", "/listen",
     ]
 
-    @field_validator("allowed_users", mode="before")
-    @classmethod
-    def parse_allowed_users(cls, v: str | list | int) -> list[int]:
-        if isinstance(v, int):
-            return [v]
-        if isinstance(v, str):
-            return [int(uid.strip()) for uid in v.split(",") if uid.strip()]
-        return v
+    def get_allowed_user_ids(self) -> list[int]:
+        """Parse allowed_users CSV string into list of ints."""
+        if not self.allowed_users or not self.allowed_users.strip():
+            return []
+        return [int(uid.strip()) for uid in self.allowed_users.split(",") if uid.strip()]
 
     @field_validator("working_dir", "state_dir", "claude_projects_dir", mode="before")
     @classmethod

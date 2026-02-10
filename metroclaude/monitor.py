@@ -55,7 +55,8 @@ class SessionMonitor:
             self._file = MonitoredFile(path=path)
 
         # Skip if file hasn't changed (mtime check is cheap)
-        if stat.st_mtime == self._file.last_mtime:
+        # P1-M2: Use <= instead of == to avoid skipping on same-second writes
+        if stat.st_mtime <= self._file.last_mtime:
             return []
         self._file.last_mtime = stat.st_mtime
 
@@ -178,6 +179,7 @@ class MonitorPool:
                 try:
                     events = await asyncio.to_thread(monitor.poll)
                     if events:
+                        logger.info("Polled %d event(s) from session %s", len(events), session_id)
                         for cb in self._callbacks:
                             try:
                                 cb(session_id, events)
@@ -189,25 +191,37 @@ class MonitorPool:
             await asyncio.sleep(self._settings.monitor_poll_interval)
 
     def _find_project_dir(self, session_id: str) -> Path:
-        """Find which project directory contains this session ID."""
+        """Find which project directory contains this session ID.
+
+        Strategy:
+        1. Scan all project dirs for the exact JSONL file
+        2. Fall back to working_dir-derived project dir (even if JSONL
+           doesn't exist yet — Claude creates it after first interaction)
+        """
         projects_dir = self._settings.claude_projects_dir
         if not projects_dir.exists():
             raise FileNotFoundError(f"Claude projects dir not found: {projects_dir}")
 
+        # 1. Exact match: JSONL file exists
         for project in projects_dir.iterdir():
             if project.is_dir():
                 jsonl = project / f"{session_id}.jsonl"
                 if jsonl.exists():
                     return project
 
-        # Default: use the working directory hash
-        wd = str(self._settings.working_dir).replace("/", "-")
-        if wd.startswith("-"):
-            pass  # keep the leading dash
-        default = projects_dir / wd
+        # 2. Derive from working_dir — Claude Code normalizes paths by
+        #    replacing all non-alphanumeric chars with '-'
+        import re
+        wd = str(self._settings.working_dir)
+        normalized = re.sub(r"[^a-zA-Z0-9]", "-", wd)
+        default = projects_dir / normalized
         if default.is_dir():
+            logger.debug("Using derived project dir: %s", default)
             return default
 
-        raise FileNotFoundError(
-            f"Cannot find project dir for session {session_id} in {projects_dir}"
+        # 3. Last resort: return the derived path anyway (JSONL will appear later)
+        logger.warning(
+            "Project dir %s not found for session %s, using it anyway (JSONL pending)",
+            default, session_id,
         )
+        return default
