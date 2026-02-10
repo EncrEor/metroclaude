@@ -9,7 +9,7 @@ from telegram.ext import ContextTypes
 
 from ..config import get_settings
 from ..security.auth import check_auth
-from ..security.input_sanitizer import sanitize_tmux_input, DEFAULT_MAX_LENGTH
+from ..security.input_sanitizer import DEFAULT_MAX_LENGTH, sanitize_tmux_input
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +70,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     first_word = text.split()[0] if text.split() else ""
     if first_word in settings.blocked_commands:
         await update.message.reply_text(
-            f"`{first_word}` est une commande interactive, "
-            "non supportee via Telegram.",
+            f"`{first_word}` est une commande interactive, non supportee via Telegram.",
             parse_mode="Markdown",
         )
         return
@@ -109,7 +108,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         # P1-SEC8: Start typing indicator immediately after send
         if typing_mgr:
             typing_mgr.start_typing(chat_id, topic_id or None)
-    except Exception as e:
+    except Exception:
         # P1-SEC12: Don't expose tracebacks to user
         logger.exception("Failed to send to tmux")
         await update.message.reply_text("Erreur d'envoi au terminal.")
@@ -144,8 +143,7 @@ async def handle_forward_command(update: Update, context: ContextTypes.DEFAULT_T
     first_word = text.split()[0] if text.split() else ""
     if first_word in settings.blocked_commands:
         await update.message.reply_text(
-            f"`{first_word}` est une commande interactive, "
-            "non supportee via Telegram.",
+            f"`{first_word}` est une commande interactive, non supportee via Telegram.",
             parse_mode="Markdown",
         )
         return

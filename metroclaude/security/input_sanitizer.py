@@ -13,22 +13,18 @@ import re
 logger = logging.getLogger(__name__)
 
 # Control chars 0x00-0x1F except allowed ones (\t=0x09, \n=0x0A)
-_CONTROL_CHAR_RE = re.compile(
-    r"[\x00-\x08\x0b\x0c\x0e-\x1f]"
-)
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 # ESC sequences: ESC (0x1B) followed by anything up to a letter or end
-_ESC_SEQ_RE = re.compile(
-    r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])"
-)
+_ESC_SEQ_RE = re.compile(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 # DEL character
 _DEL_RE = re.compile(r"\x7f")
 
 # Command injection patterns: backticks and $(...) subshells
 _CMD_INJECTION_RE = re.compile(
-    r"`[^`]*`"        # backtick command substitution
-    r"|\$\([^)]*\)"   # $() command substitution
+    r"`[^`]*`"  # backtick command substitution
+    r"|\$\([^)]*\)"  # $() command substitution
 )
 
 DEFAULT_MAX_LENGTH = 4000

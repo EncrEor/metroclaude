@@ -75,7 +75,9 @@ async def cmd_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
             logger.warning(
                 "Path validation rejected: '%s' (resolved: '%s') from user %d",
-                raw_path, resolved, update.effective_user.id,
+                raw_path,
+                resolved,
+                update.effective_user.id,
             )
             return
         if not resolved.is_dir():
@@ -94,7 +96,10 @@ async def cmd_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         topic_name = update.message.reply_to_message.forum_topic_created.name
     window_name = _sanitize_window_name(topic_name)
 
-    await update.message.reply_text(f"Lancement de Claude dans `{window_name}`...", parse_mode="Markdown")
+    await update.message.reply_text(
+        f"Lancement de Claude dans `{window_name}`...",
+        parse_mode="Markdown",
+    )
 
     try:
         window = await tmux_mgr.create_window(window_name, work_dir)
@@ -263,6 +268,7 @@ async def cmd_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # Path validation (P1-SEC4)
 # ------------------------------------------------------------------
 
+
 def _is_path_allowed(resolved_path: Path) -> bool:
     """Validate that a resolved path is under the user's home directory.
 
@@ -284,6 +290,7 @@ async def _wait_for_session_map(map_key: str, max_wait: float = 10.0) -> str | N
     The hook is triggered by Claude Code itself when it starts.
     """
     import time
+
     deadline = time.time() + max_wait
     while time.time() < deadline:
         await asyncio.sleep(1.5)

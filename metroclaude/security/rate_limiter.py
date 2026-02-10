@@ -45,7 +45,8 @@ class RateLimiter:
         if len(ts) >= self._max_per_minute:
             logger.warning(
                 "Rate limited user %d: %d messages in last 60s",
-                user_id, len(ts),
+                user_id,
+                len(ts),
             )
             return False
         ts.append(now)

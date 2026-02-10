@@ -50,7 +50,8 @@ def main() -> None:
 
     if not shutil.which(settings.claude_command):
         print(f"Error: '{settings.claude_command}' not found in PATH.", file=sys.stderr)
-        print("Install Claude Code: https://docs.anthropic.com/en/docs/claude-code", file=sys.stderr)
+        url = "https://docs.anthropic.com/en/docs/claude-code"
+        print(f"Install Claude Code: {url}", file=sys.stderr)
         sys.exit(1)
 
     from .bot import MetroClaudeBot

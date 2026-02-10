@@ -23,7 +23,13 @@ from telegram.ext import (
 )
 
 from .config import get_settings
-from .hooks import cleanup_stale_map_entries, register_hook
+from .handlers.callback_data import (
+    CB_ASKUSER,
+    CB_REFRESH,
+    CB_RESTART,
+    PREFIX_TO_TMUX_KEY,
+    decode_callback,
+)
 from .handlers.commands import (
     cmd_new,
     cmd_resume,
@@ -36,22 +42,18 @@ from .handlers.interactive import (
     InteractiveTracker,
     build_keyboard_for_ui,
     build_restart_keyboard,
+    format_askuser_text,
     format_exit_text,
     format_permission_text,
-    format_askuser_text,
 )
-from .handlers.callback_data import (
-    CB_ASKUSER,
-    CB_RESTART, CB_REFRESH,
-    PREFIX_TO_TMUX_KEY, decode_callback,
-)
-from .handlers.message import handle_text_message, handle_forward_command
-from .handlers.status import TypingManager, detect_interactive_ui, detect_claude_exit
+from .handlers.message import handle_forward_command, handle_text_message
+from .handlers.status import TypingManager, detect_claude_exit, detect_interactive_ui
+from .hooks import cleanup_stale_map_entries, register_hook
 from .monitor import MonitorPool
 from .parser import EventType, ParsedEvent, format_event_for_telegram
-from .session import SessionManager
 from .security.audit import AuditLogger
 from .security.rate_limiter import RateLimiter
+from .session import SessionManager
 from .tmux import TmuxManager
 from .utils.markdown import to_telegram
 from .utils.queue import MessageQueue, MessageTask, TaskType
@@ -85,11 +87,7 @@ class MetroClaudeBot:
         register_hook()
 
         # Build Telegram application
-        self._app = (
-            Application.builder()
-            .token(self._settings.telegram_bot_token)
-            .build()
-        )
+        self._app = Application.builder().token(self._settings.telegram_bot_token).build()
 
         # Store shared objects in bot_data
         self._app.bot_data["session_manager"] = self._session_mgr
@@ -186,22 +184,28 @@ class MetroClaudeBot:
         app.add_handler(CallbackQueryHandler(self._handle_callback))
 
         # Text messages (non-commands)
-        app.add_handler(MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
-            handle_text_message,
-        ))
+        app.add_handler(
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND,
+                handle_text_message,
+            )
+        )
 
         # P1-B1: Forward unrecognized commands to tmux (/clear, /compact, etc.)
-        app.add_handler(MessageHandler(
-            filters.COMMAND,
-            handle_forward_command,
-        ))
+        app.add_handler(
+            MessageHandler(
+                filters.COMMAND,
+                handle_forward_command,
+            )
+        )
 
         # P1-B2: Topic closed handler — cleanup session when topic is closed
-        app.add_handler(MessageHandler(
-            filters.StatusUpdate.FORUM_TOPIC_CLOSED,
-            self._handle_topic_closed,
-        ))
+        app.add_handler(
+            MessageHandler(
+                filters.StatusUpdate.FORUM_TOPIC_CLOSED,
+                self._handle_topic_closed,
+            )
+        )
 
         logger.info("Handlers registered")
 
@@ -314,12 +318,17 @@ class MetroClaudeBot:
         window_name = f"resume-{session_id[:8]}"
         try:
             window = await self._tmux_mgr.create_window(
-                window_name, match.working_dir, session_id,
+                window_name,
+                match.working_dir,
+                session_id,
             )
             # P1-T3: Use actual window name (may have suffix)
             actual_name = window.window_name or window_name
             info = self._session_mgr.create(
-                chat_id, topic_id, actual_name, match.working_dir,
+                chat_id,
+                topic_id,
+                actual_name,
+                match.working_dir,
             )
             info.claude_session_id = session_id
             info.is_running = True
@@ -328,8 +337,7 @@ class MetroClaudeBot:
             self._monitor.add_session(session_id, Path(match.working_dir))
 
             await query.edit_message_text(
-                f"Session reprise : `{session_id[:8]}...`\n"
-                f"`{match.working_dir}`",
+                f"Session reprise : `{session_id[:8]}...`\n`{match.working_dir}`",
                 parse_mode="Markdown",
             )
         except Exception as e:
@@ -357,7 +365,9 @@ class MetroClaudeBot:
     # ------------------------------------------------------------------
 
     async def _handle_topic_closed(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE,
+        self,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
     ) -> None:
         """Handle forum topic closed — cleanup session and kill tmux window."""
         if not update.message:
@@ -372,7 +382,9 @@ class MetroClaudeBot:
 
         logger.info(
             "Topic %d closed in chat %d, cleaning up window '%s'",
-            topic_id, chat_id, info.window_name,
+            topic_id,
+            chat_id,
+            info.window_name,
         )
 
         # Kill tmux window
@@ -463,7 +475,12 @@ class MetroClaudeBot:
                         reply_markup=keyboard,
                         message_thread_id=topic_id,
                     )
-                    self._interactive_tracker.mark_sent(info.window_name, "exit", msg.message_id, "exit")
+                    self._interactive_tracker.mark_sent(
+                        info.window_name,
+                        "exit",
+                        msg.message_id,
+                        "exit",
+                    )
                 except Exception as e:
                     logger.debug("Failed to send exit notification: %s", e)
                 # Stop typing
@@ -497,7 +514,10 @@ class MetroClaudeBot:
                             parse_mode="Markdown",
                         )
                         self._interactive_tracker.mark_sent(
-                            info.window_name, ui_info.name, msg.message_id, content_hash,
+                            info.window_name,
+                            ui_info.name,
+                            msg.message_id,
+                            content_hash,
                         )
                     except Exception as e:
                         logger.debug("Failed to send interactive keyboard: %s", e)
@@ -532,8 +552,13 @@ class MetroClaudeBot:
 
         chat_id = info.chat_id
         topic_id = info.topic_id if info.topic_id else None
-        logger.info("Dispatching %d event(s) for session %s → chat %d topic %s",
-                     len(events), session_id[:8], chat_id, topic_id)
+        logger.info(
+            "Dispatching %d event(s) for session %s → chat %d topic %s",
+            len(events),
+            session_id[:8],
+            chat_id,
+            topic_id,
+        )
 
         for event in events:
             # P1-SEC8: Typing management connected to JSONL events
@@ -554,26 +579,31 @@ class MetroClaudeBot:
                 if event.tool_id:
                     self._pending_tools[event.tool_id] = formatted
                 if self._queue:
-                    await self._queue.enqueue(MessageTask(
-                        chat_id=chat_id,
-                        thread_id=topic_id,
-                        text=formatted,
-                        task_type=TaskType.TOOL_USE,
-                        tool_id=event.tool_id,
-                    ))
+                    await self._queue.enqueue(
+                        MessageTask(
+                            chat_id=chat_id,
+                            thread_id=topic_id,
+                            text=formatted,
+                            task_type=TaskType.TOOL_USE,
+                            tool_id=event.tool_id,
+                        )
+                    )
 
             elif event.event_type == EventType.TOOL_RESULT:
                 original_text = self._pending_tools.pop(event.tool_id, None)
                 if original_text and self._queue:
-                    logger.info("→ TOOL_RESULT: %s (error=%s)", event.tool_id[:8] if event.tool_id else "?", event.is_error)
+                    tid = event.tool_id[:8] if event.tool_id else "?"
+                    logger.info("→ TOOL_RESULT: %s (error=%s)", tid, event.is_error)
                     suffix = " ❌" if event.is_error else " ✅"
-                    await self._queue.enqueue(MessageTask(
-                        chat_id=chat_id,
-                        thread_id=topic_id,
-                        text=original_text + suffix,
-                        task_type=TaskType.TOOL_RESULT,
-                        tool_id=event.tool_id,
-                    ))
+                    await self._queue.enqueue(
+                        MessageTask(
+                            chat_id=chat_id,
+                            thread_id=topic_id,
+                            text=original_text + suffix,
+                            task_type=TaskType.TOOL_RESULT,
+                            tool_id=event.tool_id,
+                        )
+                    )
 
             else:
                 formatted = format_event_for_telegram(event)
@@ -581,19 +611,24 @@ class MetroClaudeBot:
                     continue
                 logger.info("→ TEXT: %s", formatted[:80])
                 if self._queue:
-                    await self._queue.enqueue(MessageTask(
-                        chat_id=chat_id,
-                        thread_id=topic_id,
-                        text=formatted,
-                        task_type=TaskType.CONTENT,
-                    ))
+                    await self._queue.enqueue(
+                        MessageTask(
+                            chat_id=chat_id,
+                            thread_id=topic_id,
+                            text=formatted,
+                            task_type=TaskType.CONTENT,
+                        )
+                    )
 
     # ------------------------------------------------------------------
     # Telegram sending
     # ------------------------------------------------------------------
 
     async def _send_telegram_message(
-        self, chat_id: int, text: str, thread_id: int | None,
+        self,
+        chat_id: int,
+        text: str,
+        thread_id: int | None,
     ) -> int | None:
         """Send a message to Telegram with markdown formatting and fallback.
 
@@ -628,7 +663,11 @@ class MetroClaudeBot:
                 return None
 
     async def _edit_telegram_message(
-        self, chat_id: int, message_id: int, text: str, thread_id: int | None,
+        self,
+        chat_id: int,
+        message_id: int,
+        text: str,
+        thread_id: int | None,
     ) -> None:
         """Edit an existing Telegram message with markdown formatting and fallback."""
         if not self._app:
@@ -656,7 +695,10 @@ class MetroClaudeBot:
                 logger.error("Failed to edit message: %s", e)
 
     async def _delete_telegram_message(
-        self, chat_id: int, message_id: int, thread_id: int | None,
+        self,
+        chat_id: int,
+        message_id: int,
+        thread_id: int | None,
     ) -> None:
         """Delete a Telegram message."""
         if not self._app:

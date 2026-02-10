@@ -134,13 +134,17 @@ def register_hook() -> None:
                 return
 
     # Add our hook — matcher "" matches all SessionStart types
-    session_start_hooks.append({
-        "matcher": "",
-        "hooks": [{
-            "type": "command",
-            "command": new_command,
-        }],
-    })
+    session_start_hooks.append(
+        {
+            "matcher": "",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": new_command,
+                }
+            ],
+        }
+    )
 
     settings_path.write_text(json.dumps(data, indent=2))
     logger.info("Registered SessionStart hook: %s", new_command)

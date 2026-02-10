@@ -38,10 +38,25 @@ class Settings(BaseSettings):
 
     # Blocked Claude commands (interactive, would crash in Telegram)
     blocked_commands: list[str] = [
-        "/mcp", "/help", "/settings", "/config", "/model", "/compact",
-        "/cost", "/doctor", "/init", "/login", "/logout", "/memory",
-        "/permissions", "/pr", "/review", "/terminal", "/vim",
-        "/approved-tools", "/listen",
+        "/mcp",
+        "/help",
+        "/settings",
+        "/config",
+        "/model",
+        "/compact",
+        "/cost",
+        "/doctor",
+        "/init",
+        "/login",
+        "/logout",
+        "/memory",
+        "/permissions",
+        "/pr",
+        "/review",
+        "/terminal",
+        "/vim",
+        "/approved-tools",
+        "/listen",
     ]
 
     def get_allowed_user_ids(self) -> list[int]:

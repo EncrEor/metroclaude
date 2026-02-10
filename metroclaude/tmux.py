@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # P1-T1+T7: TmuxWindow dataclass (pattern from ccbot)
 # ------------------------------------------------------------------
 
+
 @dataclass
 class TmuxWindow:
     """Information about a tmux window."""
@@ -63,7 +64,8 @@ class TmuxManager:
             logger.info("Attached to existing tmux session '%s'", name)
         except Exception:
             self._session = self._server.new_session(
-                session_name=name, attach=False,
+                session_name=name,
+                attach=False,
             )
             logger.info("Created tmux session '%s'", name)
         return self._session
@@ -73,7 +75,9 @@ class TmuxManager:
     # ------------------------------------------------------------------
 
     def _get_window_pane(
-        self, session: libtmux.Session, window_name: str,
+        self,
+        session: libtmux.Session,
+        window_name: str,
     ) -> tuple[libtmux.Window, libtmux.Pane]:
         """Lookup window by name and return (window, active_pane).
 
@@ -88,7 +92,9 @@ class TmuxManager:
         return windows[0], pane
 
     def _find_window(
-        self, session: libtmux.Session, window_name: str,
+        self,
+        session: libtmux.Session,
+        window_name: str,
     ) -> libtmux.Window | None:
         """Lookup window by name, return None if not found."""
         windows = session.windows.filter(window_name=window_name)
@@ -133,7 +139,9 @@ class TmuxManager:
                     counter += 1
                 final_name = f"{window_name}-{counter}"
                 logger.info(
-                    "Window '%s' exists, using '%s'", window_name, final_name,
+                    "Window '%s' exists, using '%s'",
+                    window_name,
+                    final_name,
                 )
 
             window = session.new_window(
@@ -189,12 +197,14 @@ class TmuxManager:
                 except Exception:
                     cwd = ""
                     cmd = ""
-                result.append(TmuxWindow(
-                    window_id=w.window_id or "",
-                    window_name=name,
-                    cwd=cwd,
-                    pane_current_command=cmd,
-                ))
+                result.append(
+                    TmuxWindow(
+                        window_id=w.window_id or "",
+                        window_name=name,
+                        cwd=cwd,
+                        pane_current_command=cmd,
+                    )
+                )
             return result
 
         return await asyncio.to_thread(_list)
@@ -204,7 +214,9 @@ class TmuxManager:
     # ------------------------------------------------------------------
 
     async def restart_claude(
-        self, window_name: str, session_id: str | None = None,
+        self,
+        window_name: str,
+        session_id: str | None = None,
     ) -> None:
         """Restart Claude Code in a window (e.g., after crash).
 
@@ -226,7 +238,8 @@ class TmuxManager:
         await self.send_message(window_name, cmd)
         logger.info(
             "Restarted Claude in window '%s' (resume=%s)",
-            window_name, session_id,
+            window_name,
+            session_id,
         )
 
     # ------------------------------------------------------------------

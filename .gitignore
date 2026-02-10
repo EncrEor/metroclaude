@@ -13,3 +13,7 @@ venv/
 *.swp
 *.swo
 .DS_Store
+.ruff_cache/
+htmlcov/
+.coverage
+AUDIT_*.md

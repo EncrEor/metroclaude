@@ -5,15 +5,15 @@ Total length must be < 64 bytes (Telegram limit).
 """
 
 # Callback prefixes — each type of interactive UI has its own prefix
-CB_PERMIT_YES = "py"      # Permission: approve
-CB_PERMIT_NO = "pn"       # Permission: deny
-CB_ASKUSER = "au"          # AskUserQuestion: select option by index
-CB_PLANMODE_YES = "ey"    # ExitPlanMode: proceed
-CB_PLANMODE_NO = "en"     # ExitPlanMode: cancel
-CB_RESTART = "rs"          # Restart Claude after exit
-CB_REFRESH = "rf"          # Refresh terminal capture
-CB_RESTORE_YES = "ry"     # RestoreCheckpoint: yes
-CB_RESTORE_NO = "rn"      # RestoreCheckpoint: no
+CB_PERMIT_YES = "py"  # Permission: approve
+CB_PERMIT_NO = "pn"  # Permission: deny
+CB_ASKUSER = "au"  # AskUserQuestion: select option by index
+CB_PLANMODE_YES = "ey"  # ExitPlanMode: proceed
+CB_PLANMODE_NO = "en"  # ExitPlanMode: cancel
+CB_RESTART = "rs"  # Restart Claude after exit
+CB_REFRESH = "rf"  # Refresh terminal capture
+CB_RESTORE_YES = "ry"  # RestoreCheckpoint: yes
+CB_RESTORE_NO = "rn"  # RestoreCheckpoint: no
 
 # Map prefixes to the tmux key to send
 PREFIX_TO_TMUX_KEY = {

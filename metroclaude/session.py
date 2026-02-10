@@ -10,8 +10,7 @@ import logging
 import os
 import tempfile
 import time
-from dataclasses import asdict, dataclass, field
-from pathlib import Path
+from dataclasses import asdict, dataclass
 
 from .config import get_settings
 
@@ -21,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SessionInfo:
     """State for one Telegram topic ↔ Claude session binding."""
+
     topic_id: int  # Telegram message_thread_id
     chat_id: int  # Telegram group chat ID
     window_name: str  # tmux window name
@@ -44,6 +44,7 @@ class SessionInfo:
 @dataclass
 class RecentSession:
     """Lightweight reference to a past session for /resume UI."""
+
     session_id: str
     window_name: str
     working_dir: str
@@ -98,7 +99,10 @@ class SessionManager:
         return info
 
     def update_claude_session(
-        self, chat_id: int, topic_id: int, claude_session_id: str,
+        self,
+        chat_id: int,
+        topic_id: int,
+        claude_session_id: str,
     ) -> None:
         info = self.get(chat_id, topic_id)
         if info:
@@ -110,12 +114,14 @@ class SessionManager:
         key = self._key(chat_id, topic_id)
         info = self._sessions.pop(key, None)
         if info and info.claude_session_id:
-            self._add_recent(RecentSession(
-                session_id=info.claude_session_id,
-                window_name=info.window_name,
-                working_dir=info.working_dir,
-                timestamp=time.time(),
-            ))
+            self._add_recent(
+                RecentSession(
+                    session_id=info.claude_session_id,
+                    window_name=info.window_name,
+                    working_dir=info.working_dir,
+                    timestamp=time.time(),
+                )
+            )
         self._save()
         return info
 
@@ -140,7 +146,7 @@ class SessionManager:
 
         Returns the removed SessionInfo, or None if not found.
         """
-        for key, info in list(self._sessions.items()):
+        for _key, info in list(self._sessions.items()):
             if info.window_name == window_name:
                 return self.remove(info.chat_id, info.topic_id)
         return None
@@ -156,7 +162,7 @@ class SessionManager:
         Returns the list of removed sessions.
         """
         stale: list[SessionInfo] = []
-        for key, info in list(self._sessions.items()):
+        for _key, info in list(self._sessions.items()):
             if info.window_name not in live_windows:
                 stale.append(info)
         for info in stale:
@@ -224,7 +230,8 @@ class SessionManager:
                 self._recent.append(RecentSession(**r))
             logger.info(
                 "Loaded %d sessions, %d recent",
-                len(self._sessions), len(self._recent),
+                len(self._sessions),
+                len(self._recent),
             )
         except Exception as e:
             logger.warning("Failed to load state: %s", e)

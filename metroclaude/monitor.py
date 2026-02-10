@@ -7,12 +7,10 @@ Uses byte-offset to never re-read what's already been processed.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import AsyncIterator, Callable
 
 from .config import get_settings
 from .parser import ParsedEvent, parse_jsonl_line
@@ -23,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MonitoredFile:
     """Track state for a single JSONL file."""
+
     path: Path
     byte_offset: int = 0
     last_mtime: float = 0.0
@@ -32,6 +31,7 @@ class MonitoredFile:
 @dataclass
 class SessionMonitor:
     """Monitor JSONL files for a specific Claude Code session."""
+
     session_id: str
     project_dir: Path
     _file: MonitoredFile | None = field(default=None, init=False)
@@ -65,7 +65,9 @@ class SessionMonitor:
         if file_size < self._file.byte_offset:
             logger.info(
                 "File truncated for %s (offset %d > size %d), resetting",
-                path.name, self._file.byte_offset, file_size,
+                path.name,
+                self._file.byte_offset,
+                file_size,
             )
             self._file.byte_offset = 0
             self._file.partial_line = ""
@@ -212,6 +214,7 @@ class MonitorPool:
         # 2. Derive from working_dir — Claude Code normalizes paths by
         #    replacing all non-alphanumeric chars with '-'
         import re
+
         wd = str(self._settings.working_dir)
         normalized = re.sub(r"[^a-zA-Z0-9]", "-", wd)
         default = projects_dir / normalized
@@ -222,6 +225,7 @@ class MonitorPool:
         # 3. Last resort: return the derived path anyway (JSONL will appear later)
         logger.warning(
             "Project dir %s not found for session %s, using it anyway (JSONL pending)",
-            default, session_id,
+            default,
+            session_id,
         )
         return default

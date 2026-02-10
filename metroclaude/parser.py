@@ -91,28 +91,32 @@ def parse_jsonl_line(line: str) -> list[ParsedEvent]:
             if block_type == "text":
                 text = block.get("text", "")
                 if text.strip():
-                    events.append(ParsedEvent(
-                        event_type=EventType.TEXT,
-                        content=text,
-                        uuid=uuid,
-                        timestamp=timestamp,
-                        raw=data,
-                    ))
+                    events.append(
+                        ParsedEvent(
+                            event_type=EventType.TEXT,
+                            content=text,
+                            uuid=uuid,
+                            timestamp=timestamp,
+                            raw=data,
+                        )
+                    )
 
             elif block_type == "tool_use":
                 tool_name = block.get("name", "unknown")
                 tool_id = block.get("id", "")
                 tool_input = block.get("input", {})
                 summary = _summarize_tool_input(tool_name, tool_input)
-                events.append(ParsedEvent(
-                    event_type=EventType.TOOL_USE,
-                    tool_name=tool_name,
-                    tool_id=tool_id,
-                    tool_input_summary=summary,
-                    uuid=uuid,
-                    timestamp=timestamp,
-                    raw=data,
-                ))
+                events.append(
+                    ParsedEvent(
+                        event_type=EventType.TOOL_USE,
+                        tool_name=tool_name,
+                        tool_id=tool_id,
+                        tool_input_summary=summary,
+                        uuid=uuid,
+                        timestamp=timestamp,
+                        raw=data,
+                    )
+                )
 
             elif block_type == "thinking":
                 # We don't forward thinking to Telegram by default
@@ -124,25 +128,29 @@ def parse_jsonl_line(line: str) -> list[ParsedEvent]:
         if isinstance(content, list):
             for item in content:
                 if item.get("type") == "tool_result":
-                    events.append(ParsedEvent(
-                        event_type=EventType.TOOL_RESULT,
-                        tool_id=item.get("tool_use_id", ""),
-                        content=_truncate(str(item.get("content", "")), 200),
-                        is_error=item.get("is_error", False),
-                        uuid=uuid,
-                        timestamp=timestamp,
-                        raw=data,
-                    ))
+                    events.append(
+                        ParsedEvent(
+                            event_type=EventType.TOOL_RESULT,
+                            tool_id=item.get("tool_use_id", ""),
+                            content=_truncate(str(item.get("content", "")), 200),
+                            is_error=item.get("is_error", False),
+                            uuid=uuid,
+                            timestamp=timestamp,
+                            raw=data,
+                        )
+                    )
 
     elif msg_type == "system":
         content = data.get("content", "")
-        events.append(ParsedEvent(
-            event_type=EventType.SYSTEM,
-            content=content,
-            uuid=uuid,
-            timestamp=timestamp,
-            raw=data,
-        ))
+        events.append(
+            ParsedEvent(
+                event_type=EventType.SYSTEM,
+                content=content,
+                uuid=uuid,
+                timestamp=timestamp,
+                raw=data,
+            )
+        )
 
     return events
 
@@ -171,4 +179,4 @@ def format_event_for_telegram(event: ParsedEvent) -> str | None:
 
 
 def _truncate(s: str, max_len: int) -> str:
-    return s[:max_len - 3] + "..." if len(s) > max_len else s
+    return s[: max_len - 3] + "..." if len(s) > max_len else s

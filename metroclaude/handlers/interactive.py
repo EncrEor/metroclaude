@@ -13,7 +13,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from dataclasses import dataclass, field
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -45,10 +44,18 @@ _NUMBERED_RE = re.compile(r"^\s*(\d+)[.)]\s+(.+)")
 
 def build_permission_keyboard(window_name: str) -> InlineKeyboardMarkup:
     """Build a 2-button keyboard for permission prompts (Allow / Deny)."""
-    return InlineKeyboardMarkup([[
-        InlineKeyboardButton("Allow", callback_data=encode_callback(CB_PERMIT_YES, window_name)),
-        InlineKeyboardButton("Deny", callback_data=encode_callback(CB_PERMIT_NO, window_name)),
-    ]])
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "Allow", callback_data=encode_callback(CB_PERMIT_YES, window_name)
+                ),
+                InlineKeyboardButton(
+                    "Deny", callback_data=encode_callback(CB_PERMIT_NO, window_name)
+                ),
+            ]
+        ]
+    )
 
 
 def build_askuser_keyboard(content: str, window_name: str) -> InlineKeyboardMarkup:
@@ -56,45 +63,79 @@ def build_askuser_keyboard(content: str, window_name: str) -> InlineKeyboardMark
     options = parse_askuser_options(content)
     if not options:
         # Fallback: single "Reply" button (user types answer)
-        return InlineKeyboardMarkup([[
-            InlineKeyboardButton("Reply...", callback_data=encode_callback(CB_ASKUSER, window_name, 0)),
-        ]])
+        cb = encode_callback(CB_ASKUSER, window_name, 0)
+        return InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("Reply...", callback_data=cb),
+                ]
+            ]
+        )
     buttons = []
     for idx, label in options:
         # Truncate label for button display (max 40 chars)
         display = label[:40] + "..." if len(label) > 40 else label
-        buttons.append([InlineKeyboardButton(
-            display,
-            callback_data=encode_callback(CB_ASKUSER, window_name, idx),
-        )])
+        buttons.append(
+            [
+                InlineKeyboardButton(
+                    display,
+                    callback_data=encode_callback(CB_ASKUSER, window_name, idx),
+                )
+            ]
+        )
     return InlineKeyboardMarkup(buttons)
 
 
 def build_planmode_keyboard(window_name: str) -> InlineKeyboardMarkup:
     """Build a 2-button keyboard for ExitPlanMode (Proceed / Cancel)."""
-    return InlineKeyboardMarkup([[
-        InlineKeyboardButton("Proceed", callback_data=encode_callback(CB_PLANMODE_YES, window_name)),
-        InlineKeyboardButton("Cancel", callback_data=encode_callback(CB_PLANMODE_NO, window_name)),
-    ]])
+    cb_yes = encode_callback(CB_PLANMODE_YES, window_name)
+    cb_no = encode_callback(CB_PLANMODE_NO, window_name)
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("Proceed", callback_data=cb_yes),
+                InlineKeyboardButton("Cancel", callback_data=cb_no),
+            ]
+        ]
+    )
 
 
 def build_restore_keyboard(window_name: str) -> InlineKeyboardMarkup:
     """Build a 2-button keyboard for RestoreCheckpoint (Yes / No)."""
-    return InlineKeyboardMarkup([[
-        InlineKeyboardButton("Restore", callback_data=encode_callback(CB_RESTORE_YES, window_name)),
-        InlineKeyboardButton("Keep", callback_data=encode_callback(CB_RESTORE_NO, window_name)),
-    ]])
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "Restore", callback_data=encode_callback(CB_RESTORE_YES, window_name)
+                ),
+                InlineKeyboardButton(
+                    "Keep", callback_data=encode_callback(CB_RESTORE_NO, window_name)
+                ),
+            ]
+        ]
+    )
 
 
 def build_restart_keyboard(window_name: str) -> InlineKeyboardMarkup:
     """Build a 2-button keyboard for post-exit (Restart / Refresh)."""
-    return InlineKeyboardMarkup([[
-        InlineKeyboardButton("Restart", callback_data=encode_callback(CB_RESTART, window_name)),
-        InlineKeyboardButton("Refresh", callback_data=encode_callback(CB_REFRESH, window_name)),
-    ]])
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "Restart", callback_data=encode_callback(CB_RESTART, window_name)
+                ),
+                InlineKeyboardButton(
+                    "Refresh", callback_data=encode_callback(CB_REFRESH, window_name)
+                ),
+            ]
+        ]
+    )
 
 
-def build_keyboard_for_ui(ui_info: InteractiveUIInfo, window_name: str) -> InlineKeyboardMarkup | None:
+def build_keyboard_for_ui(
+    ui_info: InteractiveUIInfo,
+    window_name: str,
+) -> InlineKeyboardMarkup | None:
     """Dispatch to the right keyboard builder based on UI type."""
     builders = {
         "PermissionPrompt": lambda: build_permission_keyboard(window_name),
@@ -195,7 +236,7 @@ def _content_hash(content: str) -> str:
 def format_permission_text(content: str) -> str:
     """Format a permission prompt notification for Telegram."""
     # Extract the key info — first few meaningful lines
-    lines = [l.strip() for l in content.split("\n") if l.strip()]
+    lines = [line.strip() for line in content.split("\n") if line.strip()]
     preview = "\n".join(lines[:5])
     if len(lines) > 5:
         preview += "\n..."
@@ -204,7 +245,7 @@ def format_permission_text(content: str) -> str:
 
 def format_askuser_text(content: str) -> str:
     """Format an AskUserQuestion notification for Telegram."""
-    lines = [l.strip() for l in content.split("\n") if l.strip()]
+    lines = [line.strip() for line in content.split("\n") if line.strip()]
     preview = "\n".join(lines[:8])
     if len(lines) > 8:
         preview += "\n..."

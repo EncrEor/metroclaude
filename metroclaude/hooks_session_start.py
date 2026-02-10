@@ -42,9 +42,7 @@ def _atomic_write_json(path: Path, data: dict) -> None:
     is killed mid-write.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(
-        dir=path.parent, prefix=".session_map_", suffix=".tmp"
-    )
+    fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=".session_map_", suffix=".tmp")
     try:
         with os.fdopen(fd, "w") as f:
             json.dump(data, f, indent=2)

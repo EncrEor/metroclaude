@@ -31,16 +31,17 @@ _mistletoe = None
 
 try:
     import mistletoe as _mistletoe
-    import telegramify_markdown as _telegramify_markdown
+    import telegramify_markdown as _telegramify_markdown  # noqa: F401 (side-effect import)
     from mistletoe.block_token import BlockCode as _BlockCode
     from mistletoe.block_token import remove_token as _remove_token
-    from telegramify_markdown import _update_block, escape_latex as _escape_latex
-    from telegramify_markdown.render import (
-        TelegramMarkdownRenderer as _TelegramMarkdownRenderer,
-    )
+    from telegramify_markdown import _update_block
+    from telegramify_markdown import escape_latex as _escape_latex
 
     # ---- Module-level configuration (runs once at import) ----
     from telegramify_markdown.customize import get_runtime_config
+    from telegramify_markdown.render import (
+        TelegramMarkdownRenderer as _TelegramMarkdownRenderer,
+    )
 
     _cfg = get_runtime_config()
 
@@ -49,10 +50,10 @@ try:
     _cfg.cite_expandable = True
 
     # Use clean heading symbols instead of emoji (cleaner for CLI output).
-    _cfg.markdown_symbol.head_level_1 = "\u25B6"   # Black right-pointing triangle
-    _cfg.markdown_symbol.head_level_2 = "\u25B7"   # White right-pointing triangle
-    _cfg.markdown_symbol.head_level_3 = "\u2022"   # Bullet
-    _cfg.markdown_symbol.head_level_4 = "\u2022"   # Bullet
+    _cfg.markdown_symbol.head_level_1 = "\u25b6"  # Black right-pointing triangle
+    _cfg.markdown_symbol.head_level_2 = "\u25b7"  # White right-pointing triangle
+    _cfg.markdown_symbol.head_level_3 = "\u2022"  # Bullet
+    _cfg.markdown_symbol.head_level_4 = "\u2022"  # Bullet
 
     _HAS_TELEGRAMIFY = True
     logger.debug("telegramify-markdown loaded, configuration applied")
@@ -78,6 +79,7 @@ _TRUNCATION_SUFFIX = "\n... (truncated)"
 # Pre-processing: truncate long code blocks BEFORE markdown conversion
 # ---------------------------------------------------------------------------
 
+
 def _truncate_code_blocks(text: str, max_length: int = _MAX_CODE_BLOCK_LENGTH) -> str:
     """Truncate fenced code blocks that exceed *max_length* characters.
 
@@ -89,9 +91,9 @@ def _truncate_code_blocks(text: str, max_length: int = _MAX_CODE_BLOCK_LENGTH) -
         return text
 
     def _truncate_match(m: re.Match[str]) -> str:
-        opening = m.group(1)   # ```lang\n
-        body = m.group(2)      # code content
-        closing = m.group(3)   # ```
+        opening = m.group(1)  # ```lang\n
+        body = m.group(2)  # code content
+        closing = m.group(3)  # ```
         if len(body) <= max_length:
             return m.group(0)
         truncated = body[:max_length].rstrip()
@@ -108,6 +110,7 @@ def _truncate_code_blocks(text: str, max_length: int = _MAX_CODE_BLOCK_LENGTH) -
 # ---------------------------------------------------------------------------
 # Core conversion: custom markdownify that disables indented code blocks
 # ---------------------------------------------------------------------------
+
 
 def _markdownify(text: str) -> str:
     """Convert standard Markdown to Telegram MarkdownV2.
@@ -137,6 +140,7 @@ def _markdownify(text: str) -> str:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def to_telegram(
     text: str,
@@ -178,6 +182,7 @@ def to_telegram(
 # ---------------------------------------------------------------------------
 # Fallback: plain-text stripping
 # ---------------------------------------------------------------------------
+
 
 def _strip_markdown(text: str) -> str:
     """Remove common markdown formatting for plain text display.

@@ -21,8 +21,6 @@ from dataclasses import dataclass
 
 from telegram import Bot
 
-from ..config import get_settings
-
 logger = logging.getLogger(__name__)
 
 # Spinner characters used by Claude Code CLI
@@ -35,8 +33,8 @@ STATUS_SPINNERS = frozenset({"·", "✻", "✽", "✶", "✳", "✢"})
 # Prompt patterns — Claude Code shows these when waiting for input
 _PROMPT_RE = re.compile(
     r"^(?:"
-    r">"                   # bare ">"
-    r"|claude\s*>"         # "claude>" or "claude >"
+    r">"  # bare ">"
+    r"|claude\s*>"  # "claude>" or "claude >"
     r"|[a-zA-Z0-9._-]+>"  # "project-name>" style prompts
     r")$"
 )
@@ -66,8 +64,9 @@ _INTERACTIVE_UI_BOTTOM: list[re.Pattern[str]] = [
 @dataclass
 class InteractiveUIInfo:
     """Detected interactive UI in terminal output."""
-    name: str       # Pattern name: "PermissionPrompt", "ExitPlanMode", etc.
-    content: str    # Extracted text between top and bottom markers
+
+    name: str  # Pattern name: "PermissionPrompt", "ExitPlanMode", etc.
+    content: str  # Extracted text between top and bottom markers
 
 
 class TypingManager:
@@ -82,9 +81,7 @@ class TypingManager:
         key = f"{chat_id}:{topic_id or 0}"
         if key in self._active and not self._active[key].done():
             return
-        self._active[key] = asyncio.create_task(
-            self._typing_loop(chat_id, topic_id)
-        )
+        self._active[key] = asyncio.create_task(self._typing_loop(chat_id, topic_id))
 
     def stop_typing(self, chat_id: int, topic_id: int | None = None) -> None:
         """Stop showing typing indicator."""
@@ -149,7 +146,7 @@ def detect_claude_prompt(terminal_content: str) -> bool:
             return True
         # Short string ending with ">" — e.g. "claude>", "project>"
         # Parentheses fix P1-SEC11: explicit grouping for clarity
-        if (stripped.endswith(">") and len(stripped) < 20):
+        if stripped.endswith(">") and len(stripped) < 20:
             # Exclude lines that look like HTML tags or shell redirects
             if not stripped.startswith("<") and ">>" not in stripped:
                 return True
@@ -178,7 +175,7 @@ def detect_interactive_ui(terminal_content: str) -> InteractiveUIInfo | None:
         for name, pattern in _INTERACTIVE_UI_PATTERNS:
             if pattern.search(line):
                 # Found a top marker — check remaining lines for bottom markers
-                remaining = lines[i + 1:]
+                remaining = lines[i + 1 :]
                 has_bottom = False
                 for rline in remaining:
                     if any(bp.search(rline) for bp in _INTERACTIVE_UI_BOTTOM):

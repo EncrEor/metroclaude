@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -28,10 +28,11 @@ logger = logging.getLogger(__name__)
 # Data types
 # ---------------------------------------------------------------------------
 
+
 class RiskLevel(str, Enum):
-    LOW = "low"            # Normal operations (auth success, session events)
-    MEDIUM = "medium"      # Suspicious (auth failure, rate limit)
-    HIGH = "high"          # Attack indicator (injection, repeated failures)
+    LOW = "low"  # Normal operations (auth success, session events)
+    MEDIUM = "medium"  # Suspicious (auth failure, rate limit)
+    HIGH = "high"  # Attack indicator (injection, repeated failures)
     CRITICAL = "critical"  # Active attack (reserved for escalation)
 
 
@@ -76,6 +77,7 @@ class AuditEvent:
 # AuditLogger
 # ---------------------------------------------------------------------------
 
+
 class AuditLogger:
     """Security audit logger with in-memory ring buffer.
 
@@ -99,7 +101,7 @@ class AuditLogger:
     # ------------------------------------------------------------------
 
     def _now(self) -> str:
-        return datetime.now(timezone.utc).isoformat(timespec="seconds")
+        return datetime.now(UTC).isoformat(timespec="seconds")
 
     async def _store(self, event: AuditEvent) -> None:
         """Store event and emit structured log line."""
@@ -107,7 +109,7 @@ class AuditLogger:
 
         # Auto-trim ring buffer
         if len(self._events) > self._max_events:
-            self._events = self._events[-self._max_events:]
+            self._events = self._events[-self._max_events :]
 
         # Emit structured log (WARNING for medium+, INFO for low)
         line = f"[AUDIT] {event.to_json()}"
@@ -128,14 +130,16 @@ class AuditLogger:
         username: str = "",
     ) -> None:
         """Log successful authentication."""
-        await self._store(AuditEvent(
-            timestamp=self._now(),
-            event_type=EventType.AUTH_SUCCESS,
-            user_id=user_id,
-            risk_level=RiskLevel.LOW,
-            success=True,
-            details={"username": username},
-        ))
+        await self._store(
+            AuditEvent(
+                timestamp=self._now(),
+                event_type=EventType.AUTH_SUCCESS,
+                user_id=user_id,
+                risk_level=RiskLevel.LOW,
+                success=True,
+                details={"username": username},
+            )
+        )
 
     async def log_auth_failure(
         self,
@@ -144,14 +148,16 @@ class AuditLogger:
         name: str = "",
     ) -> None:
         """Log failed authentication attempt."""
-        await self._store(AuditEvent(
-            timestamp=self._now(),
-            event_type=EventType.AUTH_FAILURE,
-            user_id=user_id,
-            risk_level=RiskLevel.MEDIUM,
-            success=False,
-            details={"username": username, "name": name},
-        ))
+        await self._store(
+            AuditEvent(
+                timestamp=self._now(),
+                event_type=EventType.AUTH_FAILURE,
+                user_id=user_id,
+                risk_level=RiskLevel.MEDIUM,
+                success=False,
+                details={"username": username, "name": name},
+            )
+        )
 
     # ------------------------------------------------------------------
     # Rate limiting events
@@ -164,14 +170,16 @@ class AuditLogger:
         limit: int,
     ) -> None:
         """Log rate limit exceeded."""
-        await self._store(AuditEvent(
-            timestamp=self._now(),
-            event_type=EventType.RATE_LIMIT,
-            user_id=user_id,
-            risk_level=RiskLevel.MEDIUM,
-            success=False,
-            details={"count": count, "limit": limit},
-        ))
+        await self._store(
+            AuditEvent(
+                timestamp=self._now(),
+                event_type=EventType.RATE_LIMIT,
+                user_id=user_id,
+                risk_level=RiskLevel.MEDIUM,
+                success=False,
+                details={"count": count, "limit": limit},
+            )
+        )
 
     async def log_tmux_flood(
         self,
@@ -180,14 +188,16 @@ class AuditLogger:
         cooldown: float,
     ) -> None:
         """Log tmux flood guard trigger."""
-        await self._store(AuditEvent(
-            timestamp=self._now(),
-            event_type=EventType.TMUX_FLOOD,
-            user_id=user_id,
-            risk_level=RiskLevel.LOW,
-            success=False,
-            details={"window": window_name, "cooldown_s": round(cooldown, 2)},
-        ))
+        await self._store(
+            AuditEvent(
+                timestamp=self._now(),
+                event_type=EventType.TMUX_FLOOD,
+                user_id=user_id,
+                risk_level=RiskLevel.LOW,
+                success=False,
+                details={"window": window_name, "cooldown_s": round(cooldown, 2)},
+            )
+        )
 
     # ------------------------------------------------------------------
     # Input sanitization events
@@ -199,14 +209,16 @@ class AuditLogger:
         patterns: list[str],
     ) -> None:
         """Log command injection detection."""
-        await self._store(AuditEvent(
-            timestamp=self._now(),
-            event_type=EventType.INJECTION_DETECTED,
-            user_id=user_id,
-            risk_level=RiskLevel.HIGH,
-            success=False,
-            details={"patterns": patterns[:3]},
-        ))
+        await self._store(
+            AuditEvent(
+                timestamp=self._now(),
+                event_type=EventType.INJECTION_DETECTED,
+                user_id=user_id,
+                risk_level=RiskLevel.HIGH,
+                success=False,
+                details={"patterns": patterns[:3]},
+            )
+        )
 
     async def log_input_sanitized(
         self,
@@ -215,18 +227,20 @@ class AuditLogger:
         sanitized_len: int,
     ) -> None:
         """Log input modification by sanitizer."""
-        await self._store(AuditEvent(
-            timestamp=self._now(),
-            event_type=EventType.INPUT_SANITIZED,
-            user_id=user_id,
-            risk_level=RiskLevel.MEDIUM,
-            success=True,
-            details={
-                "original_len": original_len,
-                "sanitized_len": sanitized_len,
-                "removed": original_len - sanitized_len,
-            },
-        ))
+        await self._store(
+            AuditEvent(
+                timestamp=self._now(),
+                event_type=EventType.INPUT_SANITIZED,
+                user_id=user_id,
+                risk_level=RiskLevel.MEDIUM,
+                success=True,
+                details={
+                    "original_len": original_len,
+                    "sanitized_len": sanitized_len,
+                    "removed": original_len - sanitized_len,
+                },
+            )
+        )
 
     # ------------------------------------------------------------------
     # Session lifecycle events
@@ -245,14 +259,16 @@ class AuditLogger:
             "resume": EventType.SESSION_RESUME,
             "stop": EventType.SESSION_STOP,
         }
-        await self._store(AuditEvent(
-            timestamp=self._now(),
-            event_type=event_map.get(action, action),
-            user_id=user_id,
-            risk_level=RiskLevel.LOW,
-            success=True,
-            details={"action": action, "window": window_name, "cwd": working_dir},
-        ))
+        await self._store(
+            AuditEvent(
+                timestamp=self._now(),
+                event_type=event_map.get(action, action),
+                user_id=user_id,
+                risk_level=RiskLevel.LOW,
+                success=True,
+                details={"action": action, "window": window_name, "cwd": working_dir},
+            )
+        )
 
     # ------------------------------------------------------------------
     # Query interface

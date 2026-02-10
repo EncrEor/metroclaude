@@ -14,9 +14,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Awaitable
 
 from ..config import get_settings
 
@@ -27,22 +27,24 @@ logger = logging.getLogger(__name__)
 # Data types
 # ---------------------------------------------------------------------------
 
+
 class TaskType(str, Enum):
-    CONTENT = "content"            # Regular text (assistant response) — mergeable
-    TOOL_USE = "tool_use"          # Tool invocation -> creates status message
-    TOOL_RESULT = "tool_result"    # Tool result -> edits the tool_use message
-    STATUS = "status"              # Ephemeral status (e.g. "Claude is thinking...")
+    CONTENT = "content"  # Regular text (assistant response) — mergeable
+    TOOL_USE = "tool_use"  # Tool invocation -> creates status message
+    TOOL_RESULT = "tool_result"  # Tool result -> edits the tool_use message
+    STATUS = "status"  # Ephemeral status (e.g. "Claude is thinking...")
     STATUS_CLEAR = "status_clear"  # Clear status message
 
 
 @dataclass
 class MessageTask:
     """A unit of work for the message queue."""
+
     chat_id: int
     thread_id: int | None
     text: str
     task_type: TaskType = TaskType.CONTENT
-    tool_id: str = ""              # For pairing tool_use <-> tool_result
+    tool_id: str = ""  # For pairing tool_use <-> tool_result
 
 
 # Type aliases for the callback functions
@@ -54,6 +56,7 @@ DeleteFn = Callable[[int, int, int | None], Awaitable[None]]
 # ---------------------------------------------------------------------------
 # MessageQueue
 # ---------------------------------------------------------------------------
+
 
 class MessageQueue:
     """Per-chat message queue with task-type routing, tool editing, and rate limiting.
@@ -179,14 +182,20 @@ class MessageQueue:
         chunks = self._split_message(task.text)
         for chunk in chunks:
             msg_id = await self._send_with_retry(task.chat_id, chunk, task.thread_id)
-            logger.info("Sent CONTENT → chat %d (msg_id=%s, %d chars)", task.chat_id, msg_id, len(chunk))
+            logger.info(
+                "Sent CONTENT → chat %d (msg_id=%s, %d chars)",
+                task.chat_id,
+                msg_id,
+                len(chunk),
+            )
 
     async def _process_tool_use(self, task: MessageTask) -> None:
         """Send tool_use as a new message and store message_id for later editing."""
         msg_id = await self._send_with_retry(task.chat_id, task.text, task.thread_id)
         if msg_id and task.tool_id:
             self._tool_msg_ids[task.tool_id] = msg_id
-        logger.info("Sent TOOL_USE → chat %d (msg_id=%s, tool=%s)", task.chat_id, msg_id, task.tool_id[:8] if task.tool_id else "?")
+        tid = task.tool_id[:8] if task.tool_id else "?"
+        logger.info("Sent TOOL_USE → chat %d (msg_id=%s, tool=%s)", task.chat_id, msg_id, tid)
 
     async def _process_tool_result(self, task: MessageTask) -> None:
         """Edit the matching tool_use message with the result, or send new on error."""
@@ -204,7 +213,13 @@ class MessageQueue:
         # Edit the tool_use message to show the result
         try:
             await self._edit_fn(task.chat_id, msg_id, task.text, task.thread_id)
-            logger.info("Edited TOOL_RESULT → chat %d (msg_id=%d, tool=%s)", task.chat_id, msg_id, task.tool_id[:8] if task.tool_id else "?")
+            tid = task.tool_id[:8] if task.tool_id else "?"
+            logger.info(
+                "Edited TOOL_RESULT → chat %d (msg_id=%d, tool=%s)",
+                task.chat_id,
+                msg_id,
+                tid,
+            )
         except Exception as e:
             logger.warning("Failed to edit tool message %d: %s — sending new", msg_id, e)
             # Fallback: send as new message
@@ -260,10 +275,12 @@ class MessageQueue:
                     logger.warning("Rate limited, retrying in %ds", retry_after)
                     await asyncio.sleep(retry_after)
                 elif attempt < max_retries - 1:
-                    wait = 2 ** attempt
+                    wait = 2**attempt
                     logger.warning(
                         "Send error (attempt %d), retrying in %ds: %s",
-                        attempt + 1, wait, e,
+                        attempt + 1,
+                        wait,
+                        e,
                     )
                     await asyncio.sleep(wait)
                 else:

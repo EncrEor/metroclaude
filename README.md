@@ -1,5 +1,9 @@
 # MetroClaude
 
+[![CI](https://github.com/EncrEor/metroclaude/actions/workflows/ci.yml/badge.svg)](https://github.com/EncrEor/metroclaude/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+
 > Pilot Claude Code from your phone via Telegram.
 
 MetroClaude bridges Telegram and Claude Code through tmux. Send prompts, approve permissions, resume sessions — all from your phone. Your Mac does the work.
