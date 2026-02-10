@@ -39,6 +39,20 @@ def main() -> None:
     logger.info("Working dir: %s", settings.working_dir)
     logger.info("Allowed users: %s", settings.allowed_users)
 
+    # Check prerequisites
+    import shutil
+
+    if not shutil.which("tmux"):
+        print("Error: tmux is not installed.", file=sys.stderr)
+        print("  macOS: brew install tmux", file=sys.stderr)
+        print("  Linux: sudo apt install tmux", file=sys.stderr)
+        sys.exit(1)
+
+    if not shutil.which(settings.claude_command):
+        print(f"Error: '{settings.claude_command}' not found in PATH.", file=sys.stderr)
+        print("Install Claude Code: https://docs.anthropic.com/en/docs/claude-code", file=sys.stderr)
+        sys.exit(1)
+
     from .bot import MetroClaudeBot
 
     bot = MetroClaudeBot()

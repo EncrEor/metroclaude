@@ -44,6 +44,8 @@ You can switch between `tmux attach` and Telegram without losing context.
 ```bash
 git clone https://github.com/EncrEor/metroclaude.git
 cd metroclaude
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e ".[markdown,dev]"
 ```
 
@@ -150,6 +152,7 @@ metroclaude/
     auth.py            # User whitelist
     input_sanitizer.py # Tmux injection prevention
     rate_limiter.py    # Per-user + per-window rate limiting
+    audit.py           # Structured audit logging (9 event types, 4 risk levels)
   utils/
     queue.py           # Message queue with tool pairing
     markdown.py        # Markdown -> Telegram formatting
@@ -157,7 +160,7 @@ tests/
   test_parser.py       # JSONL parser (10 tests)
   test_queue.py        # Message queue (11 tests)
   test_interactive.py  # Interactive UI (16 tests)
-  test_security.py     # Auth + sanitization (19 tests)
+  test_security.py     # Auth + sanitization + audit (30 tests)
   test_tmux.py         # Tmux manager (18 tests)
   test_rate_limiter.py # Rate limiting (11 tests)
   test_session.py      # Session manager (8 tests)
@@ -192,9 +195,11 @@ MetroClaude is a "best of" from 7 open-source projects:
 
 ```bash
 # Install with dev dependencies
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e ".[markdown,dev]"
 
-# Run tests (93 tests)
+# Run tests (104 tests)
 pytest tests/ -v
 
 # Run with debug logging

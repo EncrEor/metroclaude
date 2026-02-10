@@ -7,6 +7,8 @@ Thanks for your interest in contributing!
 ```bash
 git clone https://github.com/EncrEor/metroclaude.git
 cd metroclaude
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e ".[markdown,dev]"
 ```
 
@@ -16,7 +18,7 @@ pip install -e ".[markdown,dev]"
 pytest tests/ -v
 ```
 
-All 93 tests must pass before submitting a PR.
+All 104 tests must pass before submitting a PR.
 
 ## Code style
 
