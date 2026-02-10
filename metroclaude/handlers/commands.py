@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start — welcome message."""
-    if not await check_auth(update):
+    if not await check_auth(update, audit=context.bot_data.get("audit")):
         return
     await update.message.reply_text(
         "*MetroClaude* — Claude Code depuis Telegram\n\n"
@@ -36,10 +36,11 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /new [project_path] — create new Claude session in this topic."""
-    if not await check_auth(update):
+    bot_data = context.bot_data
+    audit = bot_data.get("audit")
+    if not await check_auth(update, audit=audit):
         return
 
-    bot_data = context.bot_data
     session_mgr = bot_data.get("session_manager")
     tmux_mgr = bot_data.get("tmux_manager")
     monitor_pool = bot_data.get("monitor_pool")
@@ -109,6 +110,15 @@ async def cmd_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             parse_mode="Markdown",
         )
 
+        # P2-SEC6: Audit session creation
+        if audit:
+            await audit.log_session_event(
+                user_id=update.effective_user.id,
+                action="create",
+                window_name=actual_name,
+                working_dir=work_dir,
+            )
+
         # Wait for SessionStart hook to write session_map.json (pattern from ccbot)
         # This is non-critical — if it fails, the session still works
         tmux_session = settings.tmux_session_name
@@ -131,10 +141,11 @@ async def cmd_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /stop — stop Claude session in this topic."""
-    if not await check_auth(update):
+    bot_data = context.bot_data
+    audit = bot_data.get("audit")
+    if not await check_auth(update, audit=audit):
         return
 
-    bot_data = context.bot_data
     session_mgr = bot_data.get("session_manager")
     tmux_mgr = bot_data.get("tmux_manager")
     monitor_pool = bot_data.get("monitor_pool")
@@ -157,6 +168,15 @@ async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.warning("Error stopping session: %s", e)
 
+    # P2-SEC6: Audit session stop
+    if audit:
+        await audit.log_session_event(
+            user_id=update.effective_user.id,
+            action="stop",
+            window_name=info.window_name,
+            working_dir=info.working_dir,
+        )
+
     if monitor_pool and info.claude_session_id:
         monitor_pool.remove_session(info.claude_session_id)
 
@@ -166,7 +186,7 @@ async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /status — show all active sessions."""
-    if not await check_auth(update):
+    if not await check_auth(update, audit=context.bot_data.get("audit")):
         return
 
     session_mgr = context.bot_data.get("session_manager")
@@ -188,7 +208,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /resume — show recent sessions with inline keyboard."""
-    if not await check_auth(update):
+    if not await check_auth(update, audit=context.bot_data.get("audit")):
         return
 
     session_mgr = context.bot_data.get("session_manager")
@@ -211,7 +231,7 @@ async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 async def cmd_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /screenshot — capture terminal content as text."""
-    if not await check_auth(update):
+    if not await check_auth(update, audit=context.bot_data.get("audit")):
         return
 
     session_mgr = context.bot_data.get("session_manager")

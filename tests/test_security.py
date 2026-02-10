@@ -262,3 +262,185 @@ def test_is_authorized_empty_whitelist():
     with patch("metroclaude.security.auth.get_settings") as mock:
         mock.return_value.get_allowed_user_ids.return_value = []
         assert is_authorized(123) is False
+
+
+# ------------------------------------------------------------------
+# P2-SEC6: Audit logging (security/audit.py)
+# ------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_audit_log_auth_success():
+    """Auth success event should be stored with LOW risk."""
+    from metroclaude.security.audit import AuditLogger, RiskLevel
+
+    audit = AuditLogger()
+    await audit.log_auth_success(user_id=123, username="ahmed")
+
+    assert audit.event_count == 1
+    events = audit.get_events()
+    assert len(events) == 1
+    assert events[0]["event"] == "auth_success"
+    assert events[0]["user"] == 123
+    assert events[0]["risk"] == RiskLevel.LOW
+    assert events[0]["ok"] is True
+    assert events[0]["username"] == "ahmed"
+
+
+@pytest.mark.asyncio
+async def test_audit_log_auth_failure():
+    """Auth failure event should be stored with MEDIUM risk."""
+    from metroclaude.security.audit import AuditLogger, RiskLevel
+
+    audit = AuditLogger()
+    await audit.log_auth_failure(user_id=999, username="hacker", name="Unknown")
+
+    events = audit.get_events()
+    assert events[0]["event"] == "auth_failure"
+    assert events[0]["risk"] == RiskLevel.MEDIUM
+    assert events[0]["ok"] is False
+    assert events[0]["name"] == "Unknown"
+
+
+@pytest.mark.asyncio
+async def test_audit_log_rate_limit():
+    """Rate limit event should include count and limit."""
+    from metroclaude.security.audit import AuditLogger
+
+    audit = AuditLogger()
+    await audit.log_rate_limit(user_id=123, count=21, limit=20)
+
+    events = audit.get_events()
+    assert events[0]["event"] == "rate_limit"
+    assert events[0]["count"] == 21
+    assert events[0]["limit"] == 20
+
+
+@pytest.mark.asyncio
+async def test_audit_log_tmux_flood():
+    """Tmux flood event should include window and cooldown."""
+    from metroclaude.security.audit import AuditLogger
+
+    audit = AuditLogger()
+    await audit.log_tmux_flood(user_id=123, window_name="general", cooldown=0.7)
+
+    events = audit.get_events()
+    assert events[0]["event"] == "tmux_flood"
+    assert events[0]["window"] == "general"
+    assert events[0]["cooldown_s"] == 0.7
+
+
+@pytest.mark.asyncio
+async def test_audit_log_injection_detected():
+    """Injection detection should be HIGH risk."""
+    from metroclaude.security.audit import AuditLogger, RiskLevel
+
+    audit = AuditLogger()
+    await audit.log_injection_detected(user_id=999, patterns=["`whoami`", "$(rm -rf /)"])
+
+    events = audit.get_events()
+    assert events[0]["risk"] == RiskLevel.HIGH
+    assert events[0]["patterns"] == ["`whoami`", "$(rm -rf /)"]
+
+
+@pytest.mark.asyncio
+async def test_audit_log_input_sanitized():
+    """Sanitization event should track size change."""
+    from metroclaude.security.audit import AuditLogger
+
+    audit = AuditLogger()
+    await audit.log_input_sanitized(user_id=123, original_len=150, sanitized_len=120)
+
+    events = audit.get_events()
+    assert events[0]["removed"] == 30
+
+
+@pytest.mark.asyncio
+async def test_audit_log_session_event():
+    """Session lifecycle events should be LOW risk."""
+    from metroclaude.security.audit import AuditLogger, RiskLevel
+
+    audit = AuditLogger()
+    await audit.log_session_event(
+        user_id=123, action="create", window_name="test-project", working_dir="/home/user/project"
+    )
+
+    events = audit.get_events()
+    assert events[0]["event"] == "session_create"
+    assert events[0]["risk"] == RiskLevel.LOW
+    assert events[0]["window"] == "test-project"
+
+
+@pytest.mark.asyncio
+async def test_audit_ring_buffer_trim():
+    """Ring buffer should auto-trim when exceeding max_events."""
+    from metroclaude.security.audit import AuditLogger
+
+    audit = AuditLogger(max_events=5)
+    for i in range(10):
+        await audit.log_auth_success(user_id=i)
+
+    assert audit.event_count == 5
+    # Should keep the most recent 5 (users 5-9)
+    events = audit.get_events()
+    assert events[0]["user"] == 9  # Newest first
+    assert events[-1]["user"] == 5
+
+
+@pytest.mark.asyncio
+async def test_audit_get_events_filtered():
+    """get_events should support filtering by user, type, risk."""
+    from metroclaude.security.audit import AuditLogger, RiskLevel
+
+    audit = AuditLogger()
+    await audit.log_auth_success(user_id=123)
+    await audit.log_auth_failure(user_id=999)
+    await audit.log_rate_limit(user_id=123, count=21, limit=20)
+
+    # Filter by user
+    events = audit.get_events(user_id=123)
+    assert len(events) == 2
+
+    # Filter by type
+    events = audit.get_events(event_type="auth_failure")
+    assert len(events) == 1
+    assert events[0]["user"] == 999
+
+    # Filter by risk
+    events = audit.get_events(risk_level=RiskLevel.MEDIUM)
+    assert len(events) == 2  # auth_failure + rate_limit
+
+
+@pytest.mark.asyncio
+async def test_audit_get_summary():
+    """get_summary should aggregate counts by type and risk."""
+    from metroclaude.security.audit import AuditLogger
+
+    audit = AuditLogger()
+    await audit.log_auth_success(user_id=123)
+    await audit.log_auth_success(user_id=456)
+    await audit.log_auth_failure(user_id=999)
+    await audit.log_injection_detected(user_id=999, patterns=["`ls`"])
+
+    summary = audit.get_summary()
+    assert summary["total"] == 4
+    assert summary["by_type"]["auth_success"] == 2
+    assert summary["by_type"]["auth_failure"] == 1
+    assert summary["by_type"]["injection_detected"] == 1
+    assert summary["by_risk"]["low"] == 2
+    assert summary["by_risk"]["medium"] == 1
+    assert summary["by_risk"]["high"] == 1
+
+
+@pytest.mark.asyncio
+async def test_audit_event_to_json():
+    """AuditEvent.to_json() should produce valid JSON."""
+    from metroclaude.security.audit import AuditLogger
+
+    audit = AuditLogger()
+    await audit.log_auth_success(user_id=123, username="ahmed")
+
+    events = audit.get_events()
+    # Should be serializable
+    json_str = json.dumps(events[0])
+    parsed = json.loads(json_str)
+    assert parsed["user"] == 123

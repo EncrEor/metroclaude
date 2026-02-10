@@ -16,8 +16,11 @@ logger = logging.getLogger(__name__)
 
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle regular text messages — forward to Claude in the right tmux window."""
-    # P1-SEC1: check_auth gives feedback + P1-SEC7: logs failure
-    if not await check_auth(update):
+    bot_data = context.bot_data
+    audit = bot_data.get("audit")
+
+    # P1-SEC1: check_auth gives feedback + P1-SEC7: logs failure + P2-SEC6: audit
+    if not await check_auth(update, audit=audit):
         return
     if not update.message or not update.message.text:
         return
@@ -25,6 +28,8 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     text = update.message.text.strip()
     if not text:
         return
+
+    user_id = update.effective_user.id
 
     # P1-SEC3: Limit message length before processing
     if len(text) > DEFAULT_MAX_LENGTH:
@@ -34,7 +39,6 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     settings = get_settings()
-    bot_data = context.bot_data
     session_mgr = bot_data.get("session_manager")
     tmux_mgr = bot_data.get("tmux_manager")
     rate_limiter = bot_data.get("rate_limiter")
@@ -44,7 +48,13 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     topic_id = update.message.message_thread_id or 0
 
     # P1-SEC5: Rate limit per user
-    if rate_limiter and not rate_limiter.check_user_rate(update.effective_user.id):
+    if rate_limiter and not rate_limiter.check_user_rate(user_id):
+        if audit:
+            await audit.log_rate_limit(
+                user_id=user_id,
+                count=rate_limiter._max_per_minute,
+                limit=rate_limiter._max_per_minute,
+            )
         await update.message.reply_text("Trop de messages. Attendez un moment.")
         return
 
@@ -67,12 +77,26 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     # Sanitize before sending to tmux (P0 security: strip control chars & injection)
+    original_len = len(text)
     text = sanitize_tmux_input(text)
     if not text:
         return
+    # P2-SEC6: Audit if sanitizer modified the input
+    if len(text) != original_len and audit:
+        await audit.log_input_sanitized(
+            user_id=user_id,
+            original_len=original_len,
+            sanitized_len=len(text),
+        )
 
     # P1-SEC6: Tmux flood protection
     if rate_limiter and not rate_limiter.check_tmux_flood(info.window_name):
+        if audit:
+            await audit.log_tmux_flood(
+                user_id=user_id,
+                window_name=info.window_name,
+                cooldown=rate_limiter.remaining_cooldown(info.window_name),
+            )
         await update.message.reply_text("Message trop rapide. Attendez 1 seconde.")
         return
 
@@ -97,7 +121,8 @@ async def handle_forward_command(update: Update, context: ContextTypes.DEFAULT_T
     Catches commands like /clear, /compact, /cost that should be sent to Claude.
     Blocked commands are rejected with a message.
     """
-    if not await check_auth(update):
+    audit = context.bot_data.get("audit")
+    if not await check_auth(update, audit=audit):
         return
     if not update.message or not update.message.text:
         return

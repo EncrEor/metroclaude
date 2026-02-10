@@ -50,6 +50,7 @@ from .handlers.status import TypingManager, detect_interactive_ui, detect_claude
 from .monitor import MonitorPool
 from .parser import EventType, ParsedEvent, format_event_for_telegram
 from .session import SessionManager
+from .security.audit import AuditLogger
 from .security.rate_limiter import RateLimiter
 from .tmux import TmuxManager
 from .utils.markdown import to_telegram
@@ -70,6 +71,7 @@ class MetroClaudeBot:
         self._queue: MessageQueue | None = None
         self._typing: TypingManager | None = None
         self._rate_limiter = RateLimiter()
+        self._audit = AuditLogger()
         self._interactive_tracker: InteractiveTracker | None = None
         self._poll_task: asyncio.Task | None = None
         # P1-M1: Pending tool_use events keyed by tool_id → formatted display text
@@ -94,6 +96,7 @@ class MetroClaudeBot:
         self._app.bot_data["tmux_manager"] = self._tmux_mgr
         self._app.bot_data["monitor_pool"] = self._monitor
         self._app.bot_data["rate_limiter"] = self._rate_limiter
+        self._app.bot_data["audit"] = self._audit
 
         # Message queue for rate-limited sending (send + edit + delete)
         self._queue = MessageQueue(
